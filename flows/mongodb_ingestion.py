@@ -8,7 +8,6 @@ from pandas.api.types import is_period_dtype
 
 from config import BUCKET_GOLD, get_minio_client, URI_MONGO_DB
 
-
 def load_gold_table(object_name: str) -> pd.DataFrame:
     client = get_minio_client()
     response = client.get_object(BUCKET_GOLD, object_name)
@@ -30,7 +29,7 @@ def convert_df_to_records(df: pd.DataFrame) -> list:
     for col in df.columns:
         if is_period_dtype(df[col]):
             df[col] = df[col].astype(str)
-    
+
     df["last_updated"] = datetime.now()
     records = df.to_dict(orient="records")
     return records
@@ -55,7 +54,8 @@ def ingestion_data():
         "ca_by_month_country",
         "ca_by_day_country",
         "clients_growth_by_year",
-        "ca_growth_by_year"
+        "ca_growth_by_year",
+        "distribution_global"
     ]
 
 if __name__ == "__main__":

@@ -19,6 +19,7 @@ coll_ca_by_month_country = db["ca_by_month_country"]
 coll_ca_by_day_country = db["ca_by_day_country"]
 coll_clients_growth_by_year = db["clients_growth_by_year"]
 coll_ca_growth_by_year = db["ca_growth_by_year"]
+coll_distribution_global = db["distribution_global"]
 coll_meta = db["metadata"]
 
 def serialize_doc(doc):
@@ -59,6 +60,11 @@ def get_clients_growth_by_year():
 @app.get("/ca_growth_by_year")
 def get_ca_growth_by_year():
     docs = list(coll_ca_growth_by_year.find({}))
+    return [serialize_doc(d) for d in docs]
+
+@app.get("/distribution_global")
+def get_distribution_global():
+    docs = list(coll_distribution_global.find({}))
     return [serialize_doc(d) for d in docs]
 
 @app.get("/ca_by_year_country/{pays}")

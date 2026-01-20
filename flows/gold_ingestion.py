@@ -40,14 +40,14 @@ def kpi_clients_by_period(df_clients: pd.DataFrame, period: str, period_code: st
 @task(name="kpi_ca_by_period")
 def kpi_ca_by_period(df_joined: pd.DataFrame, period: str, period_code: str) -> pd.DataFrame:
     df_joined[period] = df_joined["date_achat"].dt.to_period(period_code)
-    ca_by_month = (
+    ca_by_period = (
         df_joined
         .groupby([period])["montant"]
         .sum()
         .reset_index(name="chiffre_affaires")
         .sort_values([period], ascending=[True])
     )
-    return ca_by_month
+    return ca_by_period
 
 @task(name="kpi_ca_by_period_and_country")
 def kpi_ca_by_period_and_country(df_joined: pd.DataFrame, period: str, period_code: str) -> pd.DataFrame:
@@ -68,35 +68,62 @@ def kpi_growth_rate(df: pd.DataFrame, value_col: str, period_col: str) -> pd.Dat
     return df
 
 
+@task(name="kpi_distribution_global")
+def kpi_distribution_global(df_achats: pd.DataFrame) -> pd.DataFrame:
+    """
+    KPI de distribution global :
+    - total_ventes : nombre de lignes
+    - total_ca : somme des montants
+    - min_depense : minimum dépensé
+    - max_depense : maximum dépensé
+    """
+    nb_ventes = len(df_achats)
+    total_ca = df_achats["montant"].sum()
+    min_dep = df_achats["montant"].min()
+    max_dep = df_achats["montant"].max()
+
+    df = pd.DataFrame(
+        [{
+            "total_ventes": nb_ventes,
+            "total_chiffre_affaires": total_ca,
+            "min_depense": min_dep,
+            "max_depense": max_dep,
+        }]
+    )
+    return df
+
 @task(name="gold_transformation")
 def gold_transformation():
     df_clients = load_silver_table("clients.parquet")
     df_achats = load_silver_table("achats.parquet")
+
     df_clients["date_inscription"] = pd.to_datetime(df_clients["date_inscription"])
     df_achats["date_achat"] = pd.to_datetime(df_achats["date_achat"])
+
     df_joined = df_achats.merge(
         df_clients[["id_client", "pays"]],
         on="id_client",
         how="left"
     )
+
     # KPI : nombre de clients
-    clients_by_year_country = kpi_clients_by_year_and_country(df_clients) # par année et par pays
-    clients_by_year = kpi_clients_by_period(df_clients, "annee", "Y") # par année
-    clients_by_month = kpi_clients_by_period(df_clients, "mois", "M") # par mois
-    clients_by_week = kpi_clients_by_period(df_clients, "semaine", "W") # par semaine
-    clients_by_day = kpi_clients_by_period(df_clients, "jour", "D") # par jour
+    clients_by_year_country = kpi_clients_by_year_and_country(df_clients)
+    clients_by_year = kpi_clients_by_period(df_clients, "annee", "Y")
+    clients_by_month = kpi_clients_by_period(df_clients, "mois", "M")
+    clients_by_week = kpi_clients_by_period(df_clients, "semaine", "W")
+    clients_by_day = kpi_clients_by_period(df_clients, "jour", "D")
 
     # KPI : chiffre d'affaires
-    ca_by_year = kpi_ca_by_period(df_joined, "annee", "Y") # par année
-    ca_by_month = kpi_ca_by_period(df_joined, "mois", "M") # par mois
-    ca_by_week = kpi_ca_by_period(df_joined, "semaine", "W") # par semaine
-    ca_by_day = kpi_ca_by_period(df_joined, "jour", "D") # par jour
+    ca_by_year = kpi_ca_by_period(df_joined, "annee", "Y")
+    ca_by_month = kpi_ca_by_period(df_joined, "mois", "M")
+    ca_by_week = kpi_ca_by_period(df_joined, "semaine", "W")
+    ca_by_day = kpi_ca_by_period(df_joined, "jour", "D")
 
     # KPI : chiffre d'affaires par pays
-    ca_by_year_country = kpi_ca_by_period_and_country(df_joined, "annee", "Y") # par année
-    ca_by_month_country = kpi_ca_by_period_and_country(df_joined, "mois", "M") # par mois
-    ca_by_week_country = kpi_ca_by_period_and_country(df_joined, "semaine", "W") # par semaine
-    ca_by_day_country = kpi_ca_by_period_and_country(df_joined, "jour", "D") # par jour
+    ca_by_year_country = kpi_ca_by_period_and_country(df_joined, "annee", "Y")
+    ca_by_month_country = kpi_ca_by_period_and_country(df_joined, "mois", "M")
+    ca_by_week_country = kpi_ca_by_period_and_country(df_joined, "semaine", "W")
+    ca_by_day_country = kpi_ca_by_period_and_country(df_joined, "jour", "D")
 
     # KPI : taux de croissance
     clients_growth_by_year = kpi_growth_rate(clients_by_year_country, "nb_clients", "annee_inscription")
@@ -106,6 +133,9 @@ def gold_transformation():
     ca_growth_by_week = kpi_growth_rate(ca_by_week, "chiffre_affaires", "semaine")
     ca_growth_by_day = kpi_growth_rate(ca_by_day, "chiffre_affaires", "jour")
 
+    # KPI : distribution global
+    distribution_global = kpi_distribution_global(df_achats)
+
     # Sauvegarde
     save_gold_table(clients_by_year_country, "clients_by_year_country.parquet")
     save_gold_table(ca_by_year_country, "ca_by_year_country.parquet")
@@ -113,6 +143,7 @@ def gold_transformation():
     save_gold_table(ca_by_day_country, "ca_by_day_country.parquet")
     save_gold_table(clients_growth_by_year, "clients_growth_by_year.parquet")
     save_gold_table(ca_growth_by_year, "ca_growth_by_year.parquet")
+    save_gold_table(distribution_global, "distribution_global.parquet")
 
 @task(name="save_gold_table")
 def save_gold_table(df: pd.DataFrame, object_name: str):
