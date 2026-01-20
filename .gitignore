@@ -1,0 +1,7 @@
+__pycache__/
+*.csv
+*.parquet
+*.sqlite
+.env
+.venv310/
+.idea

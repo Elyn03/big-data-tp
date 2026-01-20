@@ -1,0 +1,8 @@
+prefect==3.6.11
+minio
+pandas
+pyarrow
+faker
+streamlit
+plotly
+python-dotenv
